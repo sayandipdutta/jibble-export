@@ -1,0 +1,26 @@
+[project]
+name = "jibble-export"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Sayandip Dutta", email = "sayandip199309@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "dataframely>=2.7.0",
+    "polars>=1.38.1",
+    "pydantic>=2.12.5",
+]
+
+[project.scripts]
+jibble-export = "jibble_export:main"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.1",
+]
