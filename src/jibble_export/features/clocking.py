@@ -6,6 +6,7 @@ from uuid import uuid4
 
 "https://workspace.prod.jibble.io/v1/TimeOffPolicies?$filter=status eq 'Active'"
 
+
 def get_utc_offset():
     delta = dt.datetime.now().astimezone().utcoffset()
     if delta is None:
@@ -16,7 +17,9 @@ def get_utc_offset():
     hours, minutes = divmod(total_minutes, 60)
     return f"{sign}PT{int(hours)}H{int(minutes)}M"
 
+
 UTC_OFFSET = get_utc_offset()
+
 
 def clock_in():
     client = AuthorizedJibbleClient()
@@ -29,7 +32,7 @@ def clock_in():
             "personId": client.auth.personId,
             "clientType": "Web",
             "offset": UTC_OFFSET,
-            "time": dt.datetime.now(dt.UTC).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+            "time": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
             "platform": {
                 "deviceName": "Firefox",
                 "deviceModel": None,
@@ -42,6 +45,7 @@ def clock_in():
         status=http.HTTPStatus.CREATED,
     )
     return resp
+
 
 def clock_out():
     client = AuthorizedJibbleClient()
