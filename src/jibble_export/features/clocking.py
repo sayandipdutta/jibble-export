@@ -1,3 +1,4 @@
+import logging
 import http
 import datetime as dt
 from jibble_export.client import AuthorizedJibbleClient
@@ -44,12 +45,12 @@ def clock_in():
         response_model=type(None),
         status=http.HTTPStatus.CREATED,
     )
+    logging.info("Successfully Jibbled in!")
     return resp
 
 
 def clock_out():
     client = AuthorizedJibbleClient()
-    offset = ""
     resp = client.post(
         subdomain="time-tracking",
         relative_path="/v1/TimeEntries",
@@ -69,9 +70,10 @@ def clock_out():
         response_model=type(None),
         status=http.HTTPStatus.CREATED,
     )
+    logging.info("Successfully Jibbled out!")
     return resp
 
 
 if __name__ == "__main__":
-    resp = clock_out()
+    resp = clock_in()
     pprint(resp)

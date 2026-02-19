@@ -2,15 +2,16 @@ from typing import ClassVar, Any
 import time
 import json
 from urllib.parse import urlencode, quote_plus
-import os
 from dataclasses import dataclass, field
 import http.client
 import logging
+from jibble_export.settings import setting
+
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.DEBUG,
+    level=logging.DEBUG if setting.environment == "dev" else logging.INFO,
 )
 
 
@@ -23,8 +24,8 @@ class ResponseModel: ...
 
 def load_encoded_jibble_creds():
     try:
-        client_id = os.environ["JIBBLE_CLIENT_ID"]
-        client_secret = os.environ["JIBBLE_CLIENT_SECRET"]
+        client_id = setting.jibble_client_id
+        client_secret = setting.jibble_client_secret
     except KeyError:
         logging.error("client credentials not found")
         raise
