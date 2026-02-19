@@ -12,6 +12,7 @@ from jibble_export.models.responses import (
     DateValue,
 )
 
+
 @dataclass(frozen=True)
 class Month:
     index: int | calendar.Month = field(default_factory=lambda: date.today().month)
@@ -33,6 +34,7 @@ class Month:
     def name(self):
         return calendar.month_name[self.index]
 
+
 class Week:
     index: int
     year: int = field(default_factory=lambda: date.today().year)
@@ -53,7 +55,9 @@ class Week:
 type Duration = Week | Month
 
 
-def get_time_attendance_report(from_date: date | None = None, to_date: date | None = None):
+def get_time_attendance_report(
+    from_date: date | None = None, to_date: date | None = None
+):
     if from_date is None:
         from_date = date.today().replace(day=1)
     if to_date is None:
@@ -77,7 +81,9 @@ def get_time_attendance_report(from_date: date | None = None, to_date: date | No
     return resp
 
 
-def prepare_attendance_report(attendance_report: TrackedTimeReport, duration: Duration) -> pd.DataFrame:
+def prepare_attendance_report(
+    attendance_report: TrackedTimeReport, duration: Duration
+) -> pd.DataFrame:
     attendance_by_members: dict[str, dict[str, bool]] = {}
     for value in attendance_report.value:
         match value:
@@ -106,4 +112,8 @@ if __name__ == "__main__":
     present_mask = df.notnull()
     new_df = df.mask(present_mask, "P").astype(object)
     new_df.loc[:, df.columns.weekday >= 5] = "Off"  # ty: ignore[unresolved-attribute]
-    export_with_weekdays(new_df, f"{month.name}-{month.year}.xlsx", holidays=[pd.to_datetime("2-5-2026")])
+    export_with_weekdays(
+        new_df,
+        f"{month.name}-{month.year}.xlsx",
+        holidays=[pd.to_datetime("2-5-2026")],
+    )
