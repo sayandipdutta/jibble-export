@@ -1,3 +1,4 @@
+from jibble_export.features.holidays import get_holidates, get_calendars
 from jibble_export.formatter import export_with_weekdays
 from functools import cached_property
 import calendar
@@ -107,13 +108,17 @@ def prepare_attendance_report(
 
 if __name__ == "__main__":
     resp = get_time_attendance_report()
-    month = Month()
+    month = Month(10)
     df = prepare_attendance_report(resp, duration=month)
+    calendars = get_calendars()
+    calendar_id = next(str(calendar.id) for calendar in calendars.value)
+    holidays = get_holidates(2026, calendar_id)
+    holiday_list = [pd.to_datetime(value.date) for value in holidays.value]
     present_mask = df.notnull()
     new_df = df.mask(present_mask, "P").astype(object)
     new_df.loc[:, df.columns.weekday >= 5] = "Off"  # ty: ignore[unresolved-attribute]
     export_with_weekdays(
         new_df,
         f"{month.name}-{month.year}.xlsx",
-        holidays=[pd.to_datetime("2-5-2026")],
+        holidays=holiday_list,
     )
