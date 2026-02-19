@@ -1,10 +1,11 @@
 from datetime import date
+import logging
 from jibble_export.models.responses import Calendars, HolidayResponse
 import http
 from jibble_export.client import AuthorizedJibbleClient
 
 
-def get_calendars():
+def get_calendars() -> Calendars:
     client = AuthorizedJibbleClient()
     resp = client.get(
         subdomain="workspace",
@@ -16,7 +17,8 @@ def get_calendars():
     return resp
 
 
-def get_holidates(year: int, calendar_id: str):
+def get_holidates(calendar_id: str, year: int | None = None) -> HolidayResponse:
+    year = year if year is not None else date.today().year
     query = f"(year(Date) eq {year} and calendarId eq {calendar_id})"
     client = AuthorizedJibbleClient()
     resp = client.get(
@@ -28,10 +30,17 @@ def get_holidates(year: int, calendar_id: str):
     )
     return resp
 
+def get_holidays_by_name(calendar_name: str, year: int | None = None) -> HolidayResponse:
+    year = year if year is not None else date.today().year
+    calendars = get_calendars()
+    try:
+        calendar_id = next(str(calendar.id) for calendar in calendars.value if calendar.name == calendar_name)
+    except StopIteration:
+        logging.error("Could not find calendar name: %s" % calendar_name)
+        raise NameError(f"Calendar name {calendar_name} not found")
+    return get_holidates(calendar_id, year)
+
 
 if __name__ == "__main__":
-    calendars = get_calendars()
-    calendar_id = next(str(calendar.id) for calendar in calendars.value)
-    print(calendars)
-    holidays = get_holidates(date.today().year, calendar_id)
+    holidays = get_holidays_by_name("Droplet")
     print(holidays)

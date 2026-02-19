@@ -6,7 +6,7 @@ from pprint import pprint
 from uuid import uuid4
 
 
-def get_utc_offset():
+def get_utc_offset() -> str:
     delta = dt.datetime.now().astimezone().utcoffset()
     if delta is None:
         return "PT0H0M"
@@ -20,7 +20,7 @@ def get_utc_offset():
 UTC_OFFSET = get_utc_offset()
 
 
-def clock_in():
+def clock_in() -> None:
     client = AuthorizedJibbleClient()
     resp = client.post(
         subdomain="time-tracking",
@@ -46,7 +46,7 @@ def clock_in():
     return resp
 
 
-def clock_out():
+def clock_out() -> None:
     client = AuthorizedJibbleClient()
     resp = client.post(
         subdomain="time-tracking",

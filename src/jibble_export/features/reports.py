@@ -1,4 +1,5 @@
-from jibble_export.features.holidays import get_holidates, get_calendars
+import warnings
+from jibble_export.features.holidays import get_holidays_by_name
 from jibble_export.formatter import export_with_weekdays
 from functools import cached_property
 import calendar
@@ -36,9 +37,13 @@ class Month:
         return calendar.month_name[self.index]
 
 
+@dataclass(frozen=True)
 class Week:
     index: int
     year: int = field(default_factory=lambda: date.today().year)
+
+    def __post_init__(self):
+        warnings.warn("Not stable yet. Especially for 0th or 1st week", stacklevel=2)
 
     @cached_property
     def first_date(self) -> pd.Timestamp:
@@ -58,7 +63,7 @@ type Duration = Week | Month
 
 def get_time_attendance_report(
     from_date: date | None = None, to_date: date | None = None
-):
+) -> TrackedTimeReport:
     if from_date is None:
         from_date = date.today().replace(day=1)
     if to_date is None:
@@ -110,9 +115,7 @@ if __name__ == "__main__":
     resp = get_time_attendance_report()
     month = Month(10)
     df = prepare_attendance_report(resp, duration=month)
-    calendars = get_calendars()
-    calendar_id = next(str(calendar.id) for calendar in calendars.value)
-    holidays = get_holidates(2026, calendar_id)
+    holidays = get_holidays_by_name("Droplet")
     holiday_list = [pd.to_datetime(value.date) for value in holidays.value]
     present_mask = df.notnull()
     new_df = df.mask(present_mask, "P").astype(object)

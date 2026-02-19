@@ -22,7 +22,7 @@ class AuthorizationExpired(Exception): ...
 class ResponseModel: ...
 
 
-def load_encoded_jibble_creds():
+def load_encoded_jibble_creds() -> str:
     try:
         client_id = setting.jibble_client_id
         client_secret = setting.jibble_client_secret
