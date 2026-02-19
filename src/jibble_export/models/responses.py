@@ -60,3 +60,26 @@ TrackedTimeReportValue = Annotated[
     Annotated[MemberValue, Tag("Member")] | Annotated[DateValue, Tag("Date")],
     Discriminator(get_entity_type),
 ]
+
+
+class Calendars(BaseModel):
+    odata_context: str = Field(alias="@odata.context")
+    value: list[CalendarEntry]
+
+
+class CalendarEntry(BaseModel):
+    odata_etag: str = Field(alias="@odata.etag")
+    name: str
+    id: UUID
+
+
+class HolidayResponse(BaseModel):
+    odata_context: str = Field(alias="@odata.context")
+    odata_count: int = Field(alias="@odata.count")
+    value: list[HolidayEntry]
+
+
+class HolidayEntry(BaseModel):
+    calendarId: UUID
+    date: date
+    name: str

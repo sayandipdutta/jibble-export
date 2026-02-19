@@ -5,8 +5,6 @@ from jibble_export.client import AuthorizedJibbleClient
 from pprint import pprint
 from uuid import uuid4
 
-"https://workspace.prod.jibble.io/v1/TimeOffPolicies?$filter=status eq 'Active'"
-
 
 def get_utc_offset():
     delta = dt.datetime.now().astimezone().utcoffset()
@@ -24,7 +22,6 @@ UTC_OFFSET = get_utc_offset()
 
 def clock_in():
     client = AuthorizedJibbleClient()
-    offset = ""
     resp = client.post(
         subdomain="time-tracking",
         relative_path="/v1/TimeEntries",

@@ -29,19 +29,15 @@ def export_with_weekdays(df, filename, holidays=frozenset()):
                 fill = PatternFill(
                     start_color="DDDDE0", end_color="DDDDE0", fill_type="solid"
                 )
-                for i in range(
-                    1, rows + 4
-                ):  # rows + header + two extra headers + open_end
-                    worksheet[f"{col_letter}{i}"].fill = fill
+                for i in range(0, rows + 3):  # rows + header + two extra headers
+                    worksheet[f"{col_letter}{i + 1}"].fill = fill
 
             elif date in holidays:
                 fill = PatternFill(
                     start_color="DDDDFF", end_color="DDDDFF", fill_type="solid"
                 )
-                for i in range(
-                    1, rows + 4
-                ):  # rows + header + two extra headers + open_end
-                    worksheet[f"{col_letter}{i}"].fill = fill
+                for i in range(0, rows + 3):  # rows + header + two extra headers
+                    worksheet[f"{col_letter}{i + 1}"].fill = fill
 
         for cell in chain(worksheet[1], worksheet[2]):
             cell.font = Font(bold=True)
