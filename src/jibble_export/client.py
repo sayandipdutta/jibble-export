@@ -18,11 +18,10 @@ logging.basicConfig(
 class AuthorizationExpired(Exception): ...
 
 
-@dataclass
-class ResponseModel: ...
+class AuthorizationFailed(Exception): ...
 
 
-def load_encoded_jibble_creds() -> str:
+def load_encoded_jibble_creds():
     try:
         client_id = setting.jibble_client_id
         client_secret = setting.jibble_client_secret
@@ -45,13 +44,18 @@ def authorize() -> AuthResponse:
     conn = http.client.HTTPSConnection("identity.prod.jibble.io")
     encoded_creds = load_encoded_jibble_creds()
     payload = f"grant_type=client_credentials&{encoded_creds}"
-    logging.debug("paylod = %s" % payload)
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/x-www-form-urlencoded",
     }
+    logging.info("Authorizing client...")
     conn.request("POST", "/connect/token", payload, headers)
     res = conn.getresponse()
+    if res.status == http.HTTPStatus.OK:
+        logging.info("Authorization successful!")
+    else:
+        logging.fatal("Authorization Failed!")
+        raise AuthorizationFailed()
     data = res.read()
     logging.debug(data.decode())
     auth = AuthResponse(**json.loads(data.decode()))
@@ -78,17 +82,10 @@ class AuthResponse:
 @dataclass
 class AuthorizedJibbleClient:
     domain: ClassVar[str] = "prod.jibble.io"
-    auth: AuthResponse = field(init=False)
+    auth: AuthResponse = field(init=False, default_factory=authorize)
 
-    def __post_init__(self):
-        try:
-            self.auth = authorize()
-        except Exception:
-            logging.error("Failed to authorize client")
-            raise
-
-    def reauthorize(self) -> AuthorizedJibbleClient:
-        return AuthorizedJibbleClient()
+    def reauthorize(self):
+        self.auth = authorize()
 
     def get[T](
         self,
@@ -161,3 +158,5 @@ class AuthorizedJibbleClient:
             return response_model()
         response = response_model(**json.loads(data))
         return response
+
+client = AuthorizedJibbleClient()

@@ -1,7 +1,7 @@
 import logging
 import http
 import datetime as dt
-from jibble_export.client import AuthorizedJibbleClient
+from jibble_export.client import client
 from pprint import pprint
 from uuid import uuid4
 
@@ -21,7 +21,6 @@ UTC_OFFSET = get_utc_offset()
 
 
 def clock_in() -> None:
-    client = AuthorizedJibbleClient()
     resp = client.post(
         subdomain="time-tracking",
         relative_path="/v1/TimeEntries",
@@ -47,7 +46,6 @@ def clock_in() -> None:
 
 
 def clock_out() -> None:
-    client = AuthorizedJibbleClient()
     resp = client.post(
         subdomain="time-tracking",
         relative_path="/v1/TimeEntries",

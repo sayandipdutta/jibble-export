@@ -2,11 +2,10 @@ from datetime import date
 import logging
 from jibble_export.models.responses import Calendars, Holidays
 import http
-from jibble_export.client import AuthorizedJibbleClient
+from jibble_export.client import client
 
 
 def get_calendars() -> Calendars:
-    client = AuthorizedJibbleClient()
     resp = client.get(
         subdomain="workspace",
         relative_path="/v1/Calendars",
@@ -17,10 +16,9 @@ def get_calendars() -> Calendars:
     return resp
 
 
-def get_holidates(calendar_id: str, year: int | None = None) -> Holidays:
+def get_holidays(calendar_id: str, year: int | None = None) -> Holidays:
     year = year if year is not None else date.today().year
     query = f"(year(Date) eq {year} and calendarId eq {calendar_id})"
-    client = AuthorizedJibbleClient()
     resp = client.get(
         subdomain="workspace",
         relative_path="/v1/CalendarDays",
@@ -43,7 +41,7 @@ def get_holidays_by_name(calendar_name: str, year: int | None = None) -> Holiday
     except StopIteration:
         logging.error("Could not find calendar name: %s" % calendar_name)
         raise NameError(f"Calendar name {calendar_name} not found")
-    return get_holidates(calendar_id, year)
+    return get_holidays(calendar_id, year)
 
 
 if __name__ == "__main__":
