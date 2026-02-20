@@ -1,109 +1,83 @@
-from jibble_export.features.holidays import get_holidays_by_name
-from jibble_export.formatter import export_with_weekdays
-from functools import cached_property
+from datetime import date
+from typing import cast
+from collections.abc import Iterator
+from operator import attrgetter
+from itertools import groupby, chain
+from uuid import UUID
+from jibble_export.features.timeoffs import get_timeoffs
+from jibble_export.features.attendance import get_time_attendance_for_month
 import calendar
-from dataclasses import dataclass, field
+from jibble_export.models.duration import Month
 import pandas as pd
-from datetime import date, timedelta
-import http
-from jibble_export.client import AuthorizedJibbleClient
 from jibble_export.models.responses import (
-    TrackedTimeReport,
     MemberValue,
     DateValue,
+    Subject,
+    TimeoffEntries, Holidays,
 )
 
 
-@dataclass(frozen=True)
-class Month:
-    index: int | calendar.Month = field(default_factory=lambda: date.today().month)
-    year: int = field(default_factory=lambda: date.today().year)
-
-    @cached_property
-    def start_date(self) -> pd.Timestamp:
-        month = int(self.index)
-        first_day_of_month = pd.to_datetime(date(year=self.year, month=month, day=1))
-        return first_day_of_month
-
-    @cached_property
-    def periods(self) -> int:
-        return self.start_date.days_in_month
-
-    @cached_property
-    def end_date(self) -> pd.Timestamp:
-        return self.start_date + timedelta(days=self.periods - 1)
-
-    @cached_property
-    def name(self):
-        return calendar.month_name[self.index]
-
-
-@dataclass(frozen=True)
-class Duration:
-    start_date: date
-    end_date: date
-
-
-def get_time_attendance_report(from_date: date, to_date: date) -> TrackedTimeReport:
-    assert to_date >= from_date, "to_date cannot be older than from_date"
-    client = AuthorizedJibbleClient()
-    resp = client.get(
-        subdomain="time-attendance",
-        relative_path="/v1/TrackedTimeReport",
-        params={
-            "from": from_date.strftime("%Y-%m-%d"),
-            "to": to_date.strftime("%Y-%m-%d"),
-            "groupBy": "Date",
-            "subGroupBy": "Member",
-            "$expand": "Subject,Items($expand=Subject)",
-        },
-        response_model=TrackedTimeReport,
-        status=http.HTTPStatus.OK,
+def prepare_attendance_report(month: Month, holiday_calendar_name: str) -> tuple[pd.DataFrame, Holidays, list[tuple[UUID, list[date]]]]:
+    attendance_report = get_time_attendance_for_month(month)
+    holiday_list = get_holidays_by_name(holiday_calendar_name, month.year)
+    approved_timeoffs = get_timeoffs(
+        month.start_date, month.end_date, status="Approved"
     )
-    return resp
-
-
-def get_time_attendance_report_for_month(month: Month) -> TrackedTimeReport:
-    return get_time_attendance_report(month.start_date, month.end_date)
-
-
-def prepare_attendance_report(
-    duration: Month | Duration,
-    attendance_report: TrackedTimeReport | None = None,
-) -> pd.DataFrame:
-    if attendance_report is None:
-        attendance_report = get_time_attendance_report_for_month(month)
-    attendance_by_members: dict[str, dict[str, bool]] = {}
+    holidays_in_period = [
+        holiday
+        for holiday in holiday_list.value
+        if month.start_date <= pd.to_datetime(holiday.date) <= month.end_date
+    ]
+    attendance_by_members: dict[tuple[UUID, str], dict[str, bool]] = {}
     for value in attendance_report.value:
         match value:
-            case DateValue(
-                id=dt,
-                items=[*_, MemberValue()] as items,
+            case MemberValue(
+                id=id,
+                subject=Subject(name=name),
+                items=[*_, DateValue()] as items,
             ):
-                attendance_by_members[dt] = {
-                    entry.subject.name: entry.trackedTime for entry in items
+                attendance_by_members[id, name] = {
+                    entry.id: entry.trackedTime for entry in items
                 }
 
             case _:
                 raise NotImplementedError()
     df = pd.DataFrame.from_records(attendance_by_members)
-    columns = pd.DatetimeIndex(df.columns)
-    df.set_axis(columns, axis="columns")
-    new_columns = pd.date_range(start=month.start_date, periods=month.periods)
-    all_days_report = df.reindex(columns=new_columns)
-    return all_days_report
+    df = df.reindex(
+        pd.MultiIndex.from_tuples(df.columns, names=("uuid", "name")), axis="columns"
+    ).T
+    df = df.set_axis(pd.DatetimeIndex(df.columns), axis="columns").reindex(
+        columns=pd.date_range(start=month.start_date, periods=month.periods)
+    )
+    breakpoint()
+    timeoff_indexers: list[tuple[UUID, list[date]]] = []
+    personwise_timeoffs = cast(
+        Iterator[tuple[UUID, Iterator[TimeoffEntries]]],
+        groupby(approved_timeoffs.value, attrgetter("personId")),
+    )
+    for personId, member_timeoffs in personwise_timeoffs:
+        offs = list(
+            chain.from_iterable(
+                pd.date_range(start=timeoff.startDate, periods=timeoff.duration)
+                for timeoff in member_timeoffs
+            )
+        )
+        timeoff_indexers.append((personId, offs))
+    return df, holiday_list, timeoff_indexers
 
 
 if __name__ == "__main__":
-    month = Month(10)
-    df = prepare_attendance_report(duration=month)
-    holidays = get_holidays_by_name("Droplet")
-    holiday_list = [pd.to_datetime(value.date) for value in holidays.value]
-    present_mask = df.notnull()
-    new_df = df.mask(present_mask, "P").astype(object)
-    new_df.loc[:, df.columns.weekday >= 5] = "Off"  # ty: ignore[unresolved-attribute]
-    export_with_weekdays(
-        new_df,
-        f"{month.name}-{month.year}.xlsx",
-        holidays=holiday_list,
-    )
+    from jibble_export.features.holidays import get_holidays_by_name
+
+    month = Month(calendar.FEBRUARY)
+    df, holidays, timeoffs = prepare_attendance_report(month=month, holiday_calendar_name="Droplet")
+    # holidays = get_holidays_by_name("Droplet")
+    # holiday_list = [pd.to_datetime(value.date) for value in holidays.value]
+    # present_mask = df.notnull()
+    # new_df = df.mask(present_mask, "P").astype(object)
+    # new_df.loc[:, df.columns.weekday >= 5] = "Off"  # ty: ignore[unresolved-attribute]
+    # export_with_weekdays(
+    #     new_df,
+    #     f"{month.name}-{month.year}.xlsx",
+    #     holidays=holiday_list,
+    # )

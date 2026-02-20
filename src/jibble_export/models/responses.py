@@ -93,7 +93,6 @@ class Timeoffs(BaseModel):
 
 class TimeoffEntries(BaseModel):
     id: UUID
-    policyId: UUID
     personId: UUID
     kind: Literal["FullDay", "HalfDay"]
     startDate: date
@@ -101,7 +100,6 @@ class TimeoffEntries(BaseModel):
     status: Literal["Pending", "Approved", "Rejected", "Cancelled"]
     note: str
     duration: int | float
-    holidays: list[dict[str, Any]]
     person: Person
     policy: Policy
 

@@ -5,7 +5,7 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
-def export_with_weekdays(df, filename, holidays=frozenset(), leavemask=None):
+def export_with_weekdays(df, filename, holidays=frozenset(), timeoffs=list()):
     rows = len(df)
     with pd.ExcelWriter(filename, engine="openpyxl") as writer:
         df.to_excel(writer, startrow=2)

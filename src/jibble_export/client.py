@@ -159,4 +159,5 @@ class AuthorizedJibbleClient:
         response = response_model(**json.loads(data))
         return response
 
+
 client = AuthorizedJibbleClient()
