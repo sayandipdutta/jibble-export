@@ -73,7 +73,7 @@ class CalendarEntry(BaseModel):
     id: UUID
 
 
-class HolidayResponse(BaseModel):
+class Holidays(BaseModel):
     odata_context: str = Field(alias="@odata.context")
     odata_count: int = Field(alias="@odata.count")
     value: list[HolidayEntry]
@@ -83,3 +83,36 @@ class HolidayEntry(BaseModel):
     calendarId: UUID
     date: date
     name: str
+
+
+class Timeoffs(BaseModel):
+    odata_context: str = Field(alias="@odata.context")
+    odata_count: int = Field(alias="@odata.count")
+    value: list[TimeoffEntries]
+
+
+class TimeoffEntries(BaseModel):
+    id: UUID
+    policyId: UUID
+    personId: UUID
+    kind: Literal["FullDay", "HalfDay"]
+    startDate: date
+    endDate: date | None
+    status: Literal["Pending", "Approved", "Rejected", "Cancelled"]
+    note: str
+    duration: int | float
+    holidays: list[dict[str, Any]]
+    person: Person
+    policy: Policy
+
+
+class Person(BaseModel):
+    fullName: str
+    id: UUID
+
+
+class Policy(BaseModel):
+    name: str
+    compensation: Literal["Paid", "Unpaid"]
+    kind: Literal["FullDay", "HalfDay"]
+    id: UUID

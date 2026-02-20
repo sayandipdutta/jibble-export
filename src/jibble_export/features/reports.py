@@ -1,11 +1,10 @@
-import warnings
 from jibble_export.features.holidays import get_holidays_by_name
 from jibble_export.formatter import export_with_weekdays
 from functools import cached_property
 import calendar
 from dataclasses import dataclass, field
 import pandas as pd
-from datetime import date, datetime
+from datetime import date, timedelta
 import http
 from jibble_export.client import AuthorizedJibbleClient
 from jibble_export.models.responses import (
@@ -21,16 +20,18 @@ class Month:
     year: int = field(default_factory=lambda: date.today().year)
 
     @cached_property
-    def first_date(self) -> pd.Timestamp:
+    def start_date(self) -> pd.Timestamp:
         month = int(self.index)
         first_day_of_month = pd.to_datetime(date(year=self.year, month=month, day=1))
         return first_day_of_month
 
     @cached_property
     def periods(self) -> int:
-        month = int(self.index)
-        first_day_of_month = pd.to_datetime(date(year=self.year, month=month, day=1))
-        return first_day_of_month.days_in_month
+        return self.start_date.days_in_month
+
+    @cached_property
+    def end_date(self) -> pd.Timestamp:
+        return self.start_date + timedelta(days=self.periods - 1)
 
     @cached_property
     def name(self):
@@ -38,37 +39,12 @@ class Month:
 
 
 @dataclass(frozen=True)
-class Week:
-    index: int
-    year: int = field(default_factory=lambda: date.today().year)
-
-    def __post_init__(self):
-        warnings.warn("Not stable yet. Especially for 0th or 1st week", stacklevel=2)
-
-    @cached_property
-    def first_date(self) -> pd.Timestamp:
-        date_str = datetime.strptime(f"{self.year}-{self.index}-1", "%Y-%W-%w").date()
-        return pd.to_datetime(date_str)
-
-    @cached_property
-    def periods(self) -> int:
-        # FIX: what happens for first partial week?
-        days = 366 if self.first_date.is_leap_year else 365
-        this_day = self.first_date.day_of_year
-        return min(7, days - this_day)
+class Duration:
+    start_date: date
+    end_date: date
 
 
-type Duration = Week | Month
-
-
-def get_time_attendance_report(
-    from_date: date | None = None, to_date: date | None = None
-) -> TrackedTimeReport:
-    if from_date is None:
-        from_date = date.today().replace(day=1)
-    if to_date is None:
-        last_day = calendar.monthrange(from_date.year, from_date.month)[1]
-        to_date = from_date.replace(day=last_day)
+def get_time_attendance_report(from_date: date, to_date: date) -> TrackedTimeReport:
     assert to_date >= from_date, "to_date cannot be older than from_date"
     client = AuthorizedJibbleClient()
     resp = client.get(
@@ -87,9 +63,16 @@ def get_time_attendance_report(
     return resp
 
 
+def get_time_attendance_report_for_month(month: Month) -> TrackedTimeReport:
+    return get_time_attendance_report(month.start_date, month.end_date)
+
+
 def prepare_attendance_report(
-    attendance_report: TrackedTimeReport, duration: Duration
+    duration: Month | Duration,
+    attendance_report: TrackedTimeReport | None = None,
 ) -> pd.DataFrame:
+    if attendance_report is None:
+        attendance_report = get_time_attendance_report_for_month(month)
     attendance_by_members: dict[str, dict[str, bool]] = {}
     for value in attendance_report.value:
         match value:
@@ -106,15 +89,14 @@ def prepare_attendance_report(
     df = pd.DataFrame.from_records(attendance_by_members)
     columns = pd.DatetimeIndex(df.columns)
     df.set_axis(columns, axis="columns")
-    new_columns = pd.date_range(start=duration.first_date, periods=duration.periods)
+    new_columns = pd.date_range(start=month.start_date, periods=month.periods)
     all_days_report = df.reindex(columns=new_columns)
     return all_days_report
 
 
 if __name__ == "__main__":
-    resp = get_time_attendance_report()
     month = Month(10)
-    df = prepare_attendance_report(resp, duration=month)
+    df = prepare_attendance_report(duration=month)
     holidays = get_holidays_by_name("Droplet")
     holiday_list = [pd.to_datetime(value.date) for value in holidays.value]
     present_mask = df.notnull()
