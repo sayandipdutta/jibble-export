@@ -1,33 +1,36 @@
-from datetime import date
-from typing import cast
-from collections.abc import Iterator
-from operator import attrgetter
-from itertools import groupby, chain
-from uuid import UUID
-from jibble_export.features.timeoffs import get_timeoffs
-from jibble_export.features.attendance import get_time_attendance_for_month
 import calendar
-from jibble_export.models.duration import Month
+from collections.abc import Iterator
+from datetime import date
+from itertools import chain, groupby
+from operator import attrgetter
+from typing import cast
+from uuid import UUID
+
 import pandas as pd
+
+from jibble_export.features.attendance import (
+    get_time_attendance,
+)
+from jibble_export.features.holidays import get_holidays_by_name
+from jibble_export.features.timeoffs import get_timeoffs
+from jibble_export.models.duration import Duration
 from jibble_export.models.responses import (
-    MemberValue,
     DateValue,
+    Holidays,
+    MemberValue,
     Subject,
-    TimeoffEntries, Holidays,
+    TimeoffEntries,
 )
 
 
-def prepare_attendance_report(month: Month, holiday_calendar_name: str) -> tuple[pd.DataFrame, Holidays, list[tuple[UUID, list[date]]]]:
-    attendance_report = get_time_attendance_for_month(month)
-    holiday_list = get_holidays_by_name(holiday_calendar_name, month.year)
+def prepare_attendance_report(
+    duration: Duration, holiday_calendar_name: str
+) -> tuple[pd.DataFrame, Holidays, list[tuple[UUID, list[date]]]]:
+    attendance_report = get_time_attendance(duration)
+    holiday_list = get_holidays_by_name(holiday_calendar_name, duration)
     approved_timeoffs = get_timeoffs(
         month.start_date, month.end_date, status="Approved"
     )
-    holidays_in_period = [
-        holiday
-        for holiday in holiday_list.value
-        if month.start_date <= pd.to_datetime(holiday.date) <= month.end_date
-    ]
     attendance_by_members: dict[tuple[UUID, str], dict[str, bool]] = {}
     for value in attendance_report.value:
         match value:
@@ -45,9 +48,9 @@ def prepare_attendance_report(month: Month, holiday_calendar_name: str) -> tuple
     df = pd.DataFrame.from_records(attendance_by_members)
     df = df.reindex(
         pd.MultiIndex.from_tuples(df.columns, names=("uuid", "name")), axis="columns"
-    ).T
-    df = df.set_axis(pd.DatetimeIndex(df.columns), axis="columns").reindex(
-        columns=pd.date_range(start=month.start_date, periods=month.periods)
+    )
+    attendance_df = df.set_axis(pd.DatetimeIndex(df.index), axis="index").reindex(
+        index=pd.date_range(start=month.start_date, periods=month.periods)
     )
     breakpoint()
     timeoff_indexers: list[tuple[UUID, list[date]]] = []
@@ -67,10 +70,10 @@ def prepare_attendance_report(month: Month, holiday_calendar_name: str) -> tuple
 
 
 if __name__ == "__main__":
-    from jibble_export.features.holidays import get_holidays_by_name
-
-    month = Month(calendar.FEBRUARY)
-    df, holidays, timeoffs = prepare_attendance_report(month=month, holiday_calendar_name="Droplet")
+    month = Duration.month(calendar.FEBRUARY)
+    df, holidays, timeoffs = prepare_attendance_report(
+        duration=month, holiday_calendar_name="Droplet"
+    )
     # holidays = get_holidays_by_name("Droplet")
     # holiday_list = [pd.to_datetime(value.date) for value in holidays.value]
     # present_mask = df.notnull()

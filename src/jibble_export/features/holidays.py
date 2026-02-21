@@ -18,17 +18,30 @@ def get_calendars() -> Calendars:
     return resp
 
 
+def get_holidays_for_year(
+    calendar_id: str,
+    year: int,
+) -> Holidays:
+    query = f"(year(Date) eq {year} and calendarId eq {calendar_id})"
+    resp = client.get(
+        subdomain="workspace",
+        relative_path="/v1/CalendarDays",
+        params={"$filter": query, "$count": "true"},
+        response_model=Holidays,
+        status=http.HTTPStatus.OK,
+    )
+    return resp
+
+
 def get_holidays(
     calendar_id: str,
-    year: int | None = None,
-    duration: calendar.Month | Duration | None = None,
+    duration: calendar.Month | Duration,
 ) -> Holidays:
-    year = year if year is not None else date.today().year
-    query = f"(year(Date) eq {year} and calendarId eq {calendar_id})"
-    if isinstance(duration, calendar.Month):
-        query = f"({query} and month(Date) eq {duration.value})"
-    elif isinstance(duration, Duration):
+    query = f"(calendarId eq {calendar_id})"
+    if isinstance(duration, Duration):
         query = f"({query} and (Date ge {duration.start_date:%Y-%m-%d} and Date le {duration.end_date:%Y-%m-%d}))"
+    else:
+        query = f"({query} and month(Date) eq {duration.value} and year(Date) eq {date.today().year})"
     resp = client.get(
         subdomain="workspace",
         relative_path="/v1/CalendarDays",
@@ -41,10 +54,8 @@ def get_holidays(
 
 def get_holidays_by_name(
     calendar_name: str,
-    year: int | None = None,
-    duration: calendar.Month | Duration | None = None,
+    duration: Duration,
 ) -> Holidays:
-    year = year if year is not None else date.today().year
     calendars = get_calendars()
     try:
         calendar_id = next(
@@ -55,11 +66,12 @@ def get_holidays_by_name(
     except StopIteration:
         logging.error("Could not find calendar name: %s" % calendar_name)
         raise NameError(f"Calendar name {calendar_name} not found")
-    return get_holidays(calendar_id, year, duration)
+    return get_holidays(calendar_id, duration)
 
 
 if __name__ == "__main__":
     holidays = get_holidays_by_name(
-        "Droplet", duration=Duration(date(2026, 10, 1), date(2026, 10, 30))
+        "Droplet",
+        duration=Duration.month(calendar.OCTOBER),
     )
     print(holidays)
