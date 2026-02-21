@@ -1,5 +1,5 @@
 typecheck:
-	uv run ty check src
+	uv run ty check --output-format concise src
 
 format:
 	uv run ruff format src
