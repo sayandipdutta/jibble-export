@@ -1,3 +1,4 @@
+from openpyxl.styles.fills import GradientFill
 from uuid import UUID
 import logging
 from itertools import chain
@@ -38,6 +39,7 @@ colorfills = {
         end_color="770088FF",
         fill_type="solid",
     ),
+    "HalfDay": GradientFill(stop=("FFFFFF", "FF0000"), degree=0),
 }
 
 
