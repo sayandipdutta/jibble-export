@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import ClassVar, Any
 import time
 import json
@@ -94,7 +95,7 @@ class AuthorizedJibbleClient:
         relative_path: str,
         params: dict[str, str],
         response_model: type[T],
-        status: int,
+        status: HTTPStatus,
     ) -> T:
         assert relative_path.startswith("/"), "`relative_path` must start with '/'`"
         if self.auth.has_expired():
@@ -117,8 +118,7 @@ class AuthorizedJibbleClient:
         logging.debug("relative path = %s" % relative_path)
         conn.request("GET", relative_path, payload, headers)
         res = conn.getresponse()
-        if res.status != status:
-            raise ValueError(f"{res.status=}")
+        self.assert_status(res, status)
         data = res.read().decode()
         logging.debug("decoded response = %s" % data)
         if isinstance(None, response_model):
@@ -133,7 +133,7 @@ class AuthorizedJibbleClient:
         relative_path: str,
         payload: dict[str, Any],
         response_model: type[T],
-        status: int,
+        status: HTTPStatus,
     ) -> T:
         if self.auth.has_expired():
             raise AuthorizationExpired()
@@ -150,14 +150,28 @@ class AuthorizedJibbleClient:
         logging.debug("relative path = %s" % relative_path)
         conn.request("POST", relative_path, body, headers)
         res = conn.getresponse()
-        if res.status != status:
-            raise ValueError(f"{res.status=}")
+        self.assert_status(res, status)
         data = res.read().decode()
         logging.debug("decoded response = %s" % data)
         if isinstance(None, response_model):
             return response_model()
         response = response_model(**json.loads(data))
         return response
+
+    def assert_status(
+        self, response: http.client.HTTPResponse, expected_status: HTTPStatus
+    ):
+        if response.status != int(expected_status):
+            msg = response.read().decode()
+            logging.error(
+                "Expected status %s, got status %s",
+                expected_status,
+                response.status,
+            )
+            logging.debug("Message: %s", msg)
+            raise ValueError(
+                f"Expected status {expected_status}, got status {response.status}"
+            )
 
 
 client = AuthorizedJibbleClient()

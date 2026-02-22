@@ -1,10 +1,11 @@
-from jibble_export.models.duration import Duration
 import calendar
-from datetime import date
-import logging
-from jibble_export.models.responses import Calendars, Holidays
 import http
+import logging
+from datetime import date
+
 from jibble_export.client import client
+from jibble_export.models.duration import Duration
+from jibble_export.models.responses import Calendars, Holidays
 
 
 def get_calendars() -> Calendars:

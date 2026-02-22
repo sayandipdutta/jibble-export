@@ -1,8 +1,16 @@
+import logging
 from datetime import datetime, date
 from uuid import UUID
 from typing import Annotated, Any, Literal
 from datetime import timedelta
-from pydantic import BaseModel, Discriminator, Field, Tag, BeforeValidator
+from pydantic import (
+    BaseModel,
+    Discriminator,
+    Field,
+    Tag,
+    BeforeValidator,
+    model_validator,
+)
 
 EntityType = Literal["Member", "Date"]
 
@@ -88,10 +96,10 @@ class HolidayEntry(BaseModel):
 class Timeoffs(BaseModel):
     odata_context: str = Field(alias="@odata.context")
     odata_count: int = Field(alias="@odata.count")
-    value: list[TimeoffEntries]
+    value: list[TimeoffEntry]
 
 
-class TimeoffEntries(BaseModel):
+class TimeoffEntry(BaseModel):
     id: UUID
     personId: UUID
     kind: Literal["FullDay", "HalfDay"]
@@ -102,6 +110,19 @@ class TimeoffEntries(BaseModel):
     duration: int | float
     person: Person
     policy: Policy
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_terminal_date(cls, data: Any) -> Any:
+        match data:
+            case {"startDate": None, "endDate": None}:
+                logging.error("TimeOffEntry: both startDate and endDate are None.")
+                raise ValueError("both startDate and endDate cannot be None")
+            case {"startDate": None, "endDate": endDate, "duration": 1 | 0.5}:
+                data["startDate"] = endDate
+            case {"startDate": startDate, "endDate": None, "duration": 1 | 0.5}:
+                data["endDate"] = startDate
+        return data
 
 
 class Person(BaseModel):

@@ -1,18 +1,17 @@
+from jibble_export.models.duration import Duration
 from typing import Literal
 from uuid import UUID
-from datetime import date
 import http
 from jibble_export.models.responses import Timeoffs
 from jibble_export.client import client
 
 
 def get_timeoffs(
-    from_date: date,
-    to_date: date,
+    duration: Duration,
     person_id: UUID | None = None,
     status: Literal["Approved", "Rejected", "Pending", "Cancelled"] | None = None,
 ) -> Timeoffs:
-    assert from_date <= to_date
+    from_date, to_date = duration.start_date, duration.end_date
     conditions = (
         f"((startDate ge {from_date:%Y-%m-%d} and startDate le {to_date:%Y-%m-%d})"
         f"or (endDate ge {from_date:%Y-%m-%d} and endDate le {to_date:%Y-%m-%d}))"
@@ -39,8 +38,7 @@ def get_timeoffs(
 
 if __name__ == "__main__":
     timeoffs = get_timeoffs(
-        date(2026, 2, 1),
-        date(2026, 2, 28),
+        Duration.current_month(),
         person_id=UUID("aaa9e07e-a006-404a-a911-07729ddb1d28"),
         status="Approved",
     )
