@@ -1,3 +1,4 @@
+from datetime import date
 from jibble_export.formatter import export_attendance_report
 import calendar
 from uuid import UUID
@@ -75,8 +76,10 @@ def prepare_attendance_report(
 
 
 if __name__ == "__main__":
-    month = Duration.month(calendar.FEBRUARY)
+    month = calendar.FEBRUARY
+    month_duration = Duration.month(month)
     timetracking, holidays, timeoffs, person_ids = prepare_attendance_report(
-        duration=month, holiday_calendar_name="Droplet"
+        duration=month_duration, holiday_calendar_name="Droplet"
     )
-    export_attendance_report(timetracking, holidays, timeoffs, person_ids, "foo.xlsx")
+    filename = f"{month.name}-{date.today().year}.xlsx"
+    export_attendance_report(timetracking, holidays, timeoffs, person_ids, filename)
