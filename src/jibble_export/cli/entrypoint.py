@@ -1,11 +1,7 @@
-from jibble_export.formatter import export_attendance_report
-from jibble_export.features.reports import prepare_attendance_report
 import calendar
 from datetime import date
-from jibble_export.models.duration import Duration
 import inspect
-from jibble_export.features.clocking import clock_in, clock_out
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
 
 
 def get_calendar_month(month_name: str) -> calendar.Month:
@@ -20,16 +16,26 @@ def export_handler(args: Namespace):
     """
     Export attendance report for given duration.
 
+    If duration is not provided, then report is exported for current month, year.
+
+    Outfile filename is guessed from duration.
+
     Duration format:
         $ jibble export --duration "2026-02-01:2026-02-28"
+        # Report successfully exported to attendance_report_2026-02-01_2026-02-28.xlsx
         $ jibble export --duration feb
+        # Report successfully exported to attendance_report_FEBRUARY-2026.xlsx
         $ jibble export --duration feb,2026
+        # Report successfully exported to attendance_report_FEBRUARY-2026.xlsx
         $ jibble export --duration 2026
+        # Report successfully exported to attendance_report_2026.xlsx
 
     When date format is used, it has to be in yyyy-mm-dd format.
-
-    If duration is not provided, then report is exported for current month, year.
     """
+    from jibble_export.formatter import export_attendance_report
+    from jibble_export.features.reports import prepare_attendance_report
+    from jibble_export.models.duration import Duration
+
     outfile_prefix = "attendance_report_"
     filename = outfile_prefix.removesuffix('_') + ".xlsx"
     if args.duration is None:
@@ -60,18 +66,26 @@ def export_handler(args: Namespace):
     )
     export_attendance_report(timetracking, holidays, timeoffs, person_ids, filename)
 
+def clockin_handler(args: Namespace):
+    from jibble_export.features.clocking import clock_in
+    clock_in()
+
+def clockout_handler(args: Namespace):
+    from jibble_export.features.clocking import clock_out
+    clock_out()
+
 
 def main():
     parser = ArgumentParser("jibble")
     subparsers = parser.add_subparsers()
 
     clockin_parser = subparsers.add_parser("clockin")
-    clockin_parser.set_defaults(func=lambda args: clock_in())
+    clockin_parser.set_defaults(func=clockin_handler)
 
     clockout_parser = subparsers.add_parser("clockout")
-    clockout_parser.set_defaults(func=lambda args: clock_out())
+    clockout_parser.set_defaults(func=clockout_handler)
 
-    export_parser = subparsers.add_parser("export")
+    export_parser = subparsers.add_parser("export", formatter_class=RawTextHelpFormatter)
     export_parser.add_argument("--duration", "-d", help=inspect.getdoc(export_handler))
     export_parser.set_defaults(func=export_handler)
 
