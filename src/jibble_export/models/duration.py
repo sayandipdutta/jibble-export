@@ -38,3 +38,6 @@ class Duration:
     @classmethod
     def year(cls, year: int) -> Self:
         return cls(date(year, 1, 1), date(year, 12, 31))
+
+    def __str__(self):
+        return f"{type(self).__name__}(start_date={self.start_date:%Y-%m-%d}, end_date={self.end_date:%Y-%m-%d})"

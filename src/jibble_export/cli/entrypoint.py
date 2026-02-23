@@ -91,4 +91,7 @@ def main():
 
 
     args = parser.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except Exception as msg:
+        parser.error(str(msg))

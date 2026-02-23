@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from jibble_export.formatter import export_attendance_report
 import calendar
@@ -25,6 +26,9 @@ def prepare_attendance_report(
     holiday_list = get_holidays_by_name(holiday_calendar_name, duration)
     approved_timeoffs = get_timeoffs(duration, status="Approved")
     person_ids = [value.id for value in attendance_report.value]
+    if not person_ids:
+        logging.error("No person found! duration=%s, calendar=%s", duration, holiday_calendar_name)
+        raise ValueError(f"No person found in the organization during given time period: {duration}!")
     dates_in_month = pd.date_range(
         start=duration.start_date,
         end=duration.end_date,
