@@ -12,10 +12,8 @@ dependencies = [
     "pandas>=3.0.1",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.0",
+    "typer>=0.24.1",
 ]
-
-[project.scripts]
-jibble-export = "jibble_export:main"
 
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11.0"]
@@ -26,3 +24,6 @@ dev = [
     "ruff>=0.15.1",
     "ty>=0.0.18",
 ]
+
+[project.scripts]
+jibble = "jibble_export.cli.entrypoint:main"
