@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import UUID
 import logging
 from itertools import chain
@@ -65,6 +66,7 @@ def export_attendance_report(
 
     longest_name_chars = max(map(len, id_person_map.values()), default=2)
 
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(filename, engine="openpyxl") as writer:
         attendance_report.to_excel(writer, startrow=1, startcol=1, index=False)
         worksheet = writer.sheets["Sheet1"]
@@ -103,7 +105,7 @@ def export_attendance_report(
 
         for cell in chain(worksheet[1], worksheet[2]):
             cell.font = Font(bold=True)
-    logging.info(f"Report successfully exported to {filename}")
+    logging.info(f"Report successfully exported to {Path(filename).resolve()}")
 
 
 def export_with_weekdays(df, filename, holidays=frozenset(), timeoffs=list()):

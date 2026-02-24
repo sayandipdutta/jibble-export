@@ -1,0 +1,46 @@
+name: Generate Report (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Duration for the report (see README.md)"
+        required: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.5"
+          enable-cache: true
+
+      - name: Install project dependencies
+        run: uv sync --locked
+
+      - name: Export attendance report
+        id: export
+        env:
+          JIBBLE_CLIENT_ID: ${{ secrets.JIBBLE_CLIENT_ID }}
+          JIBBLE_CLIENT_SECRET: ${{ secrets.JIBBLE_CLIENT_SECRET }}
+        run: |
+          if [ -n "${{ github.event.inputs.duration }}" ]; then
+            uv run jibble export \
+              --duration ${{ github.event.inputs.duration }} \
+              -o report.xlsx
+          else
+            uv run jibble export -o report.xlsx
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: attendance-report
+          path: report.xlsx
+          retention-days: 5

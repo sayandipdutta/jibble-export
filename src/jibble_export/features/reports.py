@@ -27,8 +27,12 @@ def prepare_attendance_report(
     approved_timeoffs = get_timeoffs(duration, status="Approved")
     person_ids = [value.id for value in attendance_report.value]
     if not person_ids:
-        logging.error("No person found! duration=%s, calendar=%s", duration, holiday_calendar_name)
-        raise ValueError(f"No person found in the organization during given time period: {duration}!")
+        logging.error(
+            "No person found! duration=%s, calendar=%s", duration, holiday_calendar_name
+        )
+        raise ValueError(
+            f"No person found in the organization during given time period: {duration}!"
+        )
     dates_in_month = pd.date_range(
         start=duration.start_date,
         end=duration.end_date,

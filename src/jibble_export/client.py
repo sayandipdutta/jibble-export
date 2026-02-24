@@ -24,8 +24,8 @@ class AuthorizationFailed(Exception): ...
 
 def load_encoded_jibble_creds():
     try:
-        client_id = setting.jibble_client_id
-        client_secret = setting.jibble_client_secret
+        client_id = setting.client_id
+        client_secret = setting.client_secret
     except KeyError:
         logging.error("client credentials not found")
         raise
