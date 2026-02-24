@@ -1,11 +1,13 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    jibble_client_id: str = ""
-    jibble_client_secret: str = ""
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="JIBBLE_")
+    client_id: str = ""
+    client_secret: str = ""
     environment: str = "prod"
-    model_config = SettingsConfigDict(env_file=".env")
+    reports_dir: Path = Path("./reports")
 
 
 setting = Settings()

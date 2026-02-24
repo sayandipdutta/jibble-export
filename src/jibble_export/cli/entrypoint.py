@@ -1,7 +1,14 @@
+from pathlib import Path
+import logging
+from jibble_export.utils import date_json_encoder
+import json
+from jibble_export.settings import setting
 import calendar
-from datetime import date
+from datetime import date, timedelta
 import inspect
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
+
+import pandas as pd
 
 
 def get_calendar_month(month_name: str) -> calendar.Month:
@@ -30,6 +37,14 @@ def export_handler(args: Namespace):
         $ jibble export --duration 2026
         # Report successfully exported to attendance_report_2026.xlsx
 
+      Special values:
+      If LAST_ONE_MONTH report is exported on 24th Feb, 2026
+        $ jibble export --duration LAST_ONE_MONTH
+        # Report successfully exported to attendance_report_2026-01-25_2026-02-24.xlsx
+      If LAST_MONTH report is exported in Feb, 2026
+        $ jibble export --duration LAST_MONTH
+        # Report successfully exported to attendance_report_JANUARY-2026.xlsx
+
     When date format is used, it has to be in yyyy-mm-dd format.
     """
     from jibble_export.formatter import export_attendance_report
@@ -37,41 +52,97 @@ def export_handler(args: Namespace):
     from jibble_export.models.duration import Duration
 
     outfile_prefix = "attendance_report_"
-    filename = outfile_prefix.removesuffix('_') + ".xlsx"
-    if args.duration is None:
-        duration = Duration.current_month()
-        today = date.today()
-        filename = f"{outfile_prefix}{calendar.Month(today.month).name}-{today.year}.xlsx"
-    elif isinstance(args.duration, str):
-        try:
-            start, end = args.duration.split(":", maxsplit=1)
-            duration = Duration(date.strptime(start, "%Y-%m-%d"), date.strptime(end, "%Y-%m-%d"))
-            filename = f"{outfile_prefix}{args.duration.replace(':', '_')}.xlsx"
-        except ValueError:
+    filename = outfile_prefix.removesuffix("_") + ".xlsx"
+    match args.duration:
+        case None:
+            duration = Duration.current_month()
+            today = date.today()
+            filename = (
+                f"{outfile_prefix}{calendar.Month(today.month).name}-{today.year}.xlsx"
+            )
+        case "LAST_ONE_MONTH":
+            today = date.today()
+            last_month, last_year = (
+                (12, today.year - 1)
+                if today.month == 1
+                else (today.month - 1, today.year)
+            )
+            daysdelta = (
+                pd.to_datetime(f"{last_year}-{last_month:02d}-01").days_in_month + 1
+            )
+            start_date = today - timedelta(days=daysdelta)
+            end_date = today - timedelta(days=1)
+            duration = Duration(start_date, end_date)
+            filename = f"{outfile_prefix}{start_date:%Y-%m-%d}_{end_date:%Y-%m-%d}.xlsx"
+        case "LAST_MONTH":
+            today = date.today()
+            last_month, last_year = (
+                (12, today.year - 1)
+                if today.month == 1
+                else (today.month - 1, today.year)
+            )
+            calendar_month = calendar.Month(last_month)
+            duration = Duration.month(calendar_month, last_year)
+            filename = f"{outfile_prefix}{calendar_month.name}-{last_year}.xlsx"
+        case str():
             try:
-                month_name, year = args.duration.split(',', maxsplit=1)
-                calendar_month = get_calendar_month(month_name)
-                duration = Duration.month(calendar_month, int(year))
-                filename = f"{outfile_prefix}{calendar_month.name}-{int(year)}.xlsx"
+                start, end = args.duration.split(":", maxsplit=1)
+                duration = Duration(
+                    date.strptime(start, "%Y-%m-%d"), date.strptime(end, "%Y-%m-%d")
+                )
+                filename = f"{outfile_prefix}{args.duration.replace(':', '_')}.xlsx"
             except ValueError:
-                if args.duration.isnumeric():
-                    duration = Duration.year(int(args.duration))
-                    filename = f"{outfile_prefix}{args.duration}.xlsx"
-                else:
-                    calendar_month = get_calendar_month(args.duration)
-                    duration = Duration.month(calendar_month)
-                    filename = f"{outfile_prefix}{calendar_month.name}-{date.today().year}.xlsx"
+                try:
+                    month_name, year = args.duration.split(",", maxsplit=1)
+                    calendar_month = get_calendar_month(month_name)
+                    duration = Duration.month(calendar_month, int(year))
+                    filename = f"{outfile_prefix}{calendar_month.name}-{int(year)}.xlsx"
+                except ValueError:
+                    if args.duration.isnumeric():
+                        duration = Duration.year(int(args.duration))
+                        filename = f"{outfile_prefix}{args.duration}.xlsx"
+                    else:
+                        calendar_month = get_calendar_month(args.duration)
+                        duration = Duration.month(calendar_month)
+                        filename = f"{outfile_prefix}{calendar_month.name}-{date.today().year}.xlsx"
+    filename = setting.reports_dir / filename
+    if args.outfile:
+        filename = args.outfile
     timetracking, holidays, timeoffs, person_ids = prepare_attendance_report(
-        duration=duration, holiday_calendar_name="Droplet"
+        duration=duration,
+        holiday_calendar_name=args.calendar,
     )
-    export_attendance_report(timetracking, holidays, timeoffs, person_ids, filename)
+    export_attendance_report(
+        timetracking, holidays, timeoffs, person_ids, str(filename)
+    )
+    if args.json:
+        setting.reports_dir.mkdir(exist_ok=True)
+        with (report_details_path := setting.reports_dir / "latest.json").open(
+            "w"
+        ) as fh:
+            json.dump(
+                {
+                    "start_date": duration.start_date,
+                    "end_date": duration.end_date,
+                    "report_path": str(Path(filename).resolve()),
+                },
+                fh,
+                default=date_json_encoder,
+            )
+        logging.info(
+            "Report generation details written to %s", report_details_path.resolve()
+        )
+
 
 def clockin_handler(args: Namespace):
     from jibble_export.features.clocking import clock_in
+
     clock_in()
+
 
 def clockout_handler(args: Namespace):
     from jibble_export.features.clocking import clock_out
+
     clock_out()
 
 
@@ -85,10 +156,20 @@ def main():
     clockout_parser = subparsers.add_parser("clockout")
     clockout_parser.set_defaults(func=clockout_handler)
 
-    export_parser = subparsers.add_parser("export", formatter_class=RawTextHelpFormatter)
+    export_parser = subparsers.add_parser(
+        "export", formatter_class=RawTextHelpFormatter
+    )
+    export_parser.add_argument(
+        "--calendar", "-c", help="Name of the calendar", default="Droplet"
+    )
+    export_parser.add_argument("--outfile", "-o", help="Path to the exported file")
     export_parser.add_argument("--duration", "-d", help=inspect.getdoc(export_handler))
+    export_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="create reports/latest.json with export information. Useful for CI.",
+    )
     export_parser.set_defaults(func=export_handler)
-
 
     args = parser.parse_args()
     try:
