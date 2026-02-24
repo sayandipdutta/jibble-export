@@ -2,7 +2,7 @@ name: Generate Monthly Attendance Report
 
 on:
   schedule:
-    - cron: "20 18 24 * *"  # 24th Feb, UTC 18:15
+    - cron: "25 18 24 * *"  # 24th Feb, UTC 18:15
   workflow_dispatch:
 
 permissions:
