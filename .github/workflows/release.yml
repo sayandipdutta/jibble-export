@@ -1,0 +1,45 @@
+name: Archive Monthly Report
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read metadata
+        id: metadata
+        run: |
+          FILE=$(jq -r '.path' reports/latest.json)
+          START=$(jq -r '.start' reports/latest.json)
+          END=$(jq -r '.end' reports/latest.json)
+
+          echo "report_path=$FILE" >> $GITHUB_OUTPUT
+          echo "start=$START" >> $GITHUB_OUTPUT
+          echo "end=$END" >> $GITHUB_OUTPUT
+          echo "tag=report-${START}_${END}" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: tagcheck
+        run: |
+          if git ls-remote --tags origin ${{ steps.metadata.outputs.tag }} | grep -q ${{ steps.metadata.outputs.tag }}; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.tagcheck.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.metadata.outputs.tag }}
+          name: Attendance Report ${{ steps.metadata.outputs.start }} → ${{ steps.metadata.outputs.end }}
+          files: ${{ steps.metadata.outputs.report_path }}

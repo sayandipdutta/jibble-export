@@ -1,0 +1,54 @@
+name: Generate Monthly Attendance Report
+
+on:
+  schedule:
+    - cron: "15 18 24 * *"  # 24th Feb, UTC 18:15
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.10.5"
+          enable-cache: true
+
+      - name: Install project dependencies
+        run: uv sync --locked
+
+      - name: Generate last month's report
+        env:
+          JIBBLE_CLIENT_ID: ${{ secrets.JIBBLE_CLIENT_ID }}
+          JIBBLE_CLIENT_SECRET: ${{ secrets.JIBBLE_CLIENT_SECRET }}
+        run: |
+          uv run jibble export --duration LAST_ONE_MONTH --json
+
+      - name: Read metadata
+        id: metadata
+        run: |
+          FILE=$(jq -r '.path' reports/latest.json)
+          START=$(jq -r '.start' reports/latest.json)
+          END=$(jq -r '.end' reports/latest.json)
+
+          echo "report_path=$FILE" >> $GITHUB_OUTPUT
+          echo "start=$START" >> $GITHUB_OUTPUT
+          echo "end=$END" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: monthly-report-${{ steps.metadata.outputs.start }}_${{ steps.metadata.outputs.end }}
+          title: "Attendance Report ${{ steps.metadata.outputs.start }} → ${{ steps.metadata.outputs.end }}"
+          commit-message: "Add attendance report ${{ steps.metadata.outputs.start }} → ${{ steps.metadata.outputs.end }}"
+          reviewers: ${{ secrets.HR_REVIEWERS }}
+          delete-branch: true
