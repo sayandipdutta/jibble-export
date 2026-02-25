@@ -122,9 +122,9 @@ def export_handler(args: Namespace):
         ) as fh:
             json.dump(
                 {
-                    "start_date": duration.start_date,
-                    "end_date": duration.end_date,
-                    "report_path": str(Path(filename).resolve()),
+                    "start": duration.start_date,
+                    "end": duration.end_date,
+                    "path": str(Path(filename).resolve()),
                 },
                 fh,
                 default=date_json_encoder,
