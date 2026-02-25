@@ -2,7 +2,7 @@ name: Generate Monthly Attendance Report
 
 on:
   schedule:
-    - cron: "25 18 24 * *"  # 24th Feb, UTC 18:15
+    - cron: "25 18 24 * *" # 24th Feb, UTC 18:15
   workflow_dispatch:
 
 permissions:
@@ -36,9 +36,11 @@ jobs:
       - name: Read metadata
         id: metadata
         run: |
-          FILE=$(jq -r '.path' reports/latest.json)
-          START=$(jq -r '.start' reports/latest.json)
-          END=$(jq -r '.end' reports/latest.json)
+          cat reports/latest.json
+          ls
+          FILE=$(jq -er '.path' reports/latest.json)
+          START=$(jq -er '.start' reports/latest.json)
+          END=$(jq -er '.end' reports/latest.json)
 
           echo "report_path=$FILE" >> $GITHUB_OUTPUT
           echo "start=$START" >> $GITHUB_OUTPUT
