@@ -4,7 +4,7 @@ from jibble_export.utils import date_json_encoder
 import json
 from jibble_export.settings import setting
 import calendar
-from datetime import date, timedelta
+from datetime import date
 import inspect
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
 
@@ -61,17 +61,9 @@ def export_handler(args: Namespace):
                 f"{outfile_prefix}{calendar.Month(today.month).name}-{today.year}.xlsx"
             )
         case "LAST_ONE_MONTH":
-            today = date.today()
-            last_month, last_year = (
-                (12, today.year - 1)
-                if today.month == 1
-                else (today.month - 1, today.year)
-            )
-            daysdelta = (
-                pd.to_datetime(f"{last_year}-{last_month:02d}-01").days_in_month + 1
-            )
-            start_date = today - timedelta(days=daysdelta)
-            end_date = today - timedelta(days=1)
+            today = pd.Timestamp.today()
+            end_date = (today - pd.DateOffset(days=1)).to_pydatetime().date()
+            start_date = (today - pd.DateOffset(months=1)).to_pydatetime().date()
             duration = Duration(start_date, end_date)
             filename = f"{outfile_prefix}{start_date:%Y-%m-%d}_{end_date:%Y-%m-%d}.xlsx"
         case "LAST_MONTH":
