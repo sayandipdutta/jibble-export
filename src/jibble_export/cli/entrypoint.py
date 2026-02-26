@@ -137,7 +137,10 @@ def export_handler(args: Namespace):
 def clockin_handler(args: Namespace):
     from jibble_export.features.clocking import clock_in
 
-    clock_in()
+    td = pd.Timedelta(args.autoout if args.autoout is not None else 0)
+    if td > pd.Timedelta(days=1):
+        raise ValueError("Auto clock out time cannot be longer than 1 day.")
+    clock_in(auto_clock_out_after=td.to_pytimedelta())
 
 
 def clockout_handler(args: Namespace):
@@ -151,6 +154,10 @@ def main():
     subparsers = parser.add_subparsers()
 
     clockin_parser = subparsers.add_parser("clockin")
+    clockin_parser.add_argument(
+        "--autoout",
+        help="Autoclockout after given timedelta in ISO 8601 timedelta format. e.g. `--autoout PT9H` for 9 hours.",
+    )
     clockin_parser.set_defaults(func=clockin_handler)
 
     clockout_parser = subparsers.add_parser("clockout")

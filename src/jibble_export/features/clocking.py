@@ -35,12 +35,14 @@ def clock_in(*, auto_clock_out_after: dt.timedelta = dt.timedelta(0)) -> None:
         },
         "id": str(uuid4()),
     }
+    success_msg = "Successfully Jibbled in!"
     if auto_clock_out_after:
         auto_clock_out_time = dt.datetime.now() + auto_clock_out_after
         payload.pop("time")
         payload["autoClockOutTime"] = auto_clock_out_time.astimezone().isoformat(
             timespec="milliseconds"
         )
+        success_msg += f" Auto clock out set after {auto_clock_out_after}!"
     resp = client.post(
         subdomain="time-tracking",
         relative_path="/v1/TimeEntries",
@@ -48,7 +50,7 @@ def clock_in(*, auto_clock_out_after: dt.timedelta = dt.timedelta(0)) -> None:
         response_model=type(None),
         status=http.HTTPStatus.CREATED,
     )
-    logging.info("Successfully Jibbled in!")
+    logging.info(success_msg)
     return resp
 
 
