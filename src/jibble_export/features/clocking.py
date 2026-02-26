@@ -20,24 +20,31 @@ def get_utc_offset() -> str:
 UTC_OFFSET = get_utc_offset()
 
 
-def clock_in() -> None:
+def clock_in(*, auto_clock_out_after: dt.timedelta = dt.timedelta(0)) -> None:
+    payload = {
+        "type": "In",
+        "personId": client.auth.personId,
+        "clientType": "Web",
+        "offset": UTC_OFFSET,
+        "time": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "platform": {
+            "deviceName": "Firefox",
+            "deviceModel": None,
+            "clientVersion": "147.0",
+            "os": "Linux",
+        },
+        "id": str(uuid4()),
+    }
+    if auto_clock_out_after:
+        auto_clock_out_time = dt.datetime.now() + auto_clock_out_after
+        payload.pop("time")
+        payload["autoClockOutTime"] = auto_clock_out_time.astimezone().isoformat(
+            timespec="milliseconds"
+        )
     resp = client.post(
         subdomain="time-tracking",
         relative_path="/v1/TimeEntries",
-        payload={
-            "type": "In",
-            "personId": client.auth.personId,
-            "clientType": "Web",
-            "offset": UTC_OFFSET,
-            "time": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-            "platform": {
-                "deviceName": "Firefox",
-                "deviceModel": None,
-                "clientVersion": "147.0",
-                "os": "Linux",
-            },
-            "id": str(uuid4()),
-        },
+        payload=payload,
         response_model=type(None),
         status=http.HTTPStatus.CREATED,
     )
