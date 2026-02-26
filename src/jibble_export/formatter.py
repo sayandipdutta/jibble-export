@@ -15,13 +15,13 @@ colorfills = {
         fill_type="solid",
     ),
     "Sick Leave": PatternFill(
-        start_color="BBBBDDFF",
+        start_color="DD9BBDDF",
         end_color="BBBBDDFF",
         fill_type="solid",
     ),
     "Unpaid Leave": PatternFill(
-        start_color="FF2222FF",
-        end_color="FF2222FF",
+        start_color="FFFF2222",
+        end_color="FFFF2222",
         fill_type="solid",
     ),
     "Present": PatternFill(
@@ -106,6 +106,18 @@ def export_attendance_report(
             if date.weekday() >= 5:
                 worksheet.column_dimensions[col_letter].width = 6
 
-        for cell in chain(worksheet[1], worksheet[2]):
+        start = len(id_person_map) + 4
+        worksheet[f"A{start}"] = "Working Days:"
+        worksheet[f"B{start}"] = f"{len(attendance_report.columns)}"
+        for i, guid in enumerate(attendance_report.index, start=start + 1):
+            worksheet[f"A{i}"] = id_person_map[guid]
+            worksheet[f"B{i}"] = (attendance_report.loc[guid, :] == "Present").sum()
+        worksheet[f"F{start}"] = "Color"
+        worksheet[f"G{start}"] = "Represents"
+        for i, (kind, value) in enumerate(colorfills.items(), start=start + 1):
+            worksheet[f"F{i}"].fill = value
+            worksheet[f"G{i}"] = kind
+        for cell in chain(worksheet[1], worksheet[2], worksheet[start]):
             cell.font = Font(bold=True)
+
     logging.info(f"Report successfully exported to {Path(filename).resolve()}")
