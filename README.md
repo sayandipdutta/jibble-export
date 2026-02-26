@@ -123,4 +123,19 @@ Either create a new task at log on, using task scheduler, or put it in `shell:st
 
 ### Clockin at logon in linux (using systemd)
 
+```shell
+!#/bin/env sh
+# script.sh
+cd <path/to/jibble-export>
+uv run jibble export clockin --autoout PT9H
+```
+
+Then make it executable:
+
+```shell
+chmod +x script.sh
+```
+
+Put its full path in `~/.profile` for bash or `~/.zprofile` for zsh, or at `$PROFILE`
+
 _**NOTE**: This library is primarily for personal use._
